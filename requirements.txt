@@ -1,0 +1,17 @@
+langchain
+langchain-core
+langchain-openai
+langchain-text-splitters
+langgraph
+langgraph-checkpoint
+numpy
+openai
+orjson
+ormsgpack
+langgraph_backend
+packaging
+langchain_ollama
+pandas
+pydantic
+pydantic_core
+streamlit
