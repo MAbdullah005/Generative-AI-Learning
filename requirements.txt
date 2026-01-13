@@ -8,6 +8,7 @@ numpy
 openai
 orjson
 ormsgpack
+langgraph-checkpoint-sqlite
 langgraph_backend
 packaging
 langchain_ollama
