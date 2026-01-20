@@ -32,7 +32,7 @@ def web_search(query: str) -> str:
 def calculator(first_num: float, second_num: float, operation: str) -> dict:
 
     """
-    Perform a basic arithmetic operation on two numbers.
+    Perform a basic arithmetic operation a on two numbers.
     Supported operations: add, sub, mul, div
     """
     op_map = {
