@@ -15,4 +15,6 @@ langchain_ollama
 pandas
 pydantic
 pydantic_core
+langchain_community
+dotenv
 streamlit

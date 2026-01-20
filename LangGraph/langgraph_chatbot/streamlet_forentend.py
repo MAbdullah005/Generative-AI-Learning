@@ -1,6 +1,6 @@
 import streamlit as st
-from langgraph_backend_chatbot import chatbot, retrieve_all_threads
-from langchain_core.messages import HumanMessage
+from langgraph_backend_chatbot import chatbot
+from langchain_core.messages import HumanMessage, AIMessage
 import uuid
 
 # **************************************** utility functions *************************
@@ -33,7 +33,7 @@ if 'thread_id' not in st.session_state:
     st.session_state['thread_id'] = generate_thread_id()
 
 if 'chat_threads' not in st.session_state:
-    st.session_state['chat_threads'] = retrieve_all_threads()
+    st.session_state['chat_threads'] = []
 
 add_thread(st.session_state['thread_id'])
 
@@ -80,25 +80,29 @@ if user_input:
     with st.chat_message('user'):
         st.text(user_input)
 
-    #CONFIG = {'configurable': {'thread_id': st.session_state['thread_id']}}
+    CONFIG = {'configurable': {'thread_id': st.session_state['thread_id']}}
 
-    CONFIG = {
-        "configurable": {"thread_id": st.session_state["thread_id"]},
-        "metadata": {
-            "thread_id": st.session_state["thread_id"]
-        },
-        "run_name": "chat_turn",
-    }
+     # first add the message to message_history
+    with st.chat_message("assistant"):
+     def ai_only_stream():
+      final_answer = ""
+      for message_chunk, metadata in chatbot.stream(
+          {"messages": [HumanMessage(content=user_input)]},
+          config=CONFIG,
+          stream_mode="messages"
+      ):
+          # Only show final AI responses (no tool calls)
+          if isinstance(message_chunk, AIMessage):
+              if message_chunk.tool_calls:
+                continue  # skip tool calls completely
+              if message_chunk.content:
+                  final_answer += message_chunk.content
+                  yield message_chunk.content
+      return final_answer
 
-    # first add the message to message_history
-    with st.chat_message('assistant'):
+    ai_message = st.write_stream(ai_only_stream())
 
-        ai_message = st.write_stream(
-            message_chunk.content for message_chunk, metadata in chatbot.stream(
-                {'messages': [HumanMessage(content=user_input)]},
-                config= CONFIG,
-                stream_mode= 'messages'
-            )
-        )
-
-    st.session_state['message_history'].append({'role': 'assistant', 'content': ai_message})
+    st.session_state['message_history'].append({
+    'role': 'assistant',
+    'content': ai_message  
+    })
