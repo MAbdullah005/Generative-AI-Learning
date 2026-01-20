@@ -1,10 +1,11 @@
 
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Annotated
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage,AIMessage
 from langchain_ollama import ChatOllama
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph.message import add_messages
+from langchain_core.messages import SystemMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.tools import tool
@@ -17,16 +18,23 @@ load_dotenv()
 # -------------------
 # 1. LLM
 # -------------------
-llm=ChatOllama(model='llama3.2:1b',temperature=0.2,num_predict=256)
+llm=ChatOllama(model='qwen2.5:7b',temperature=0.2)
 
 # -------------------
 # 2. Tools
 # -------------------
 # Tools
-search_tool = DuckDuckGoSearchRun(region="us-en")
+@tool(description="Search the web for real-time information using DuckDuckGo")
+def web_search(query: str) -> str:
+    return DuckDuckGoSearchRun(region="us-en").run(query)
 
 @tool
 def calculator(first_num: float, second_num: float, operation: str) -> dict:
+
+    """
+    Perform a basic arithmetic operation on two numbers.
+    Supported operations: add, sub, mul, div
+    """
     op_map = {
         "+": "add",
         "-": "sub",
@@ -65,7 +73,7 @@ def get_stock_price(symbol: str) -> dict:
 
 
 
-tools = [search_tool, get_stock_price, calculator]
+tools = [web_search, get_stock_price, calculator]
 llm_with_tools = llm.bind_tools(tools)
 
 # -------------------
@@ -79,7 +87,7 @@ class ChatState(TypedDict):
 # -------------------
 def chat_node(state: ChatState):
     messages = [
-        HumanMessage(
+        SystemMessage(
             content=(
                 "You are a helpful assistant. "
                 "Only call tools when explicitly required. "
@@ -89,6 +97,7 @@ def chat_node(state: ChatState):
     ] + state["messages"]
 
     response = llm_with_tools.invoke(messages)
+    
     return {"messages": [response]}
 
 
@@ -100,6 +109,16 @@ tool_node = ToolNode(tools)
 conn = sqlite3.connect(database="chatbot_conv.db", check_same_thread=False)
 checkpointer = SqliteSaver(conn=conn)
 
+def safe_tools_condition(state: ChatState):
+    last_msg = state["messages"][-1]
+
+    # Only go to tools if the model made a REAL tool call
+    if isinstance(last_msg, AIMessage) and last_msg.tool_calls:
+        return "tools"
+
+    return END
+
+
 # -------------------
 # 6. Graph
 # -------------------
@@ -109,7 +128,14 @@ graph.add_node("tools", tool_node)
 
 graph.add_edge(START, "chat_node")
 
-graph.add_conditional_edges("chat_node",tools_condition)
+graph.add_conditional_edges(
+    "chat_node",
+    safe_tools_condition,
+    {
+        "tools": "tools",
+        END: END
+    }
+)
 graph.add_edge('tools', 'chat_node')
 
 chatbot = graph.compile(checkpointer=checkpointer)
