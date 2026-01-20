@@ -141,7 +141,7 @@ graph.add_edge('tools', 'chat_node')
 chatbot = graph.compile(checkpointer=checkpointer)
 
 # -------------------
-# 7. Helper
+# 7. Helpaer
 # -------------------
 def retrieve_all_threads():
     all_threads = set()
