@@ -18,3 +18,4 @@ pydantic_core
 langchain_community
 dotenv
 streamlit
+numpy
